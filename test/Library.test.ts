@@ -145,4 +145,65 @@ describe('Library(図書館)', () => {
       expect(member2.hasBorrowed(book)).toBe(true)
     })
   })
+
+  describe('延滞チェック', () => {
+    it('延滞中の会員は新たに本を借りられないこと', () => {
+      // 2月1日に貸出
+      const checkoutDate = new Date('2026-02-01')
+      library.checkout(member.id, book.isbn, checkoutDate)
+
+      // 2月20日(延滞中)に別の本を借りようとする
+      const book2 = new Book(
+        '978-4-00-000002-0',
+        '文学',
+        '坊っちゃん',
+        '夏目漱石',
+      )
+      library.addBook(book2)
+      const today = new Date('2026-02-20')
+
+      expect(() => {
+        library.checkout(member.id, book2.isbn, today)
+      }).toThrow('延滞中のため貸出できません。')
+    })
+
+    it('返却期限内であれば追加で借りられること', () => {
+      // 2月1日に貸出
+      const checkoutDate = new Date('2026-02-01')
+      library.checkout(member.id, book.isbn, checkoutDate)
+
+      const book2 = new Book(
+        '978-4-00-000002-0',
+        '文学',
+        '坊っちゃん',
+        '夏目漱石',
+      )
+      library.addBook(book2)
+      const today = new Date('2026-02-10') // 返却期限前
+
+      expect(() => {
+        library.checkout(member.id, book2.isbn, today)
+      }).not.toThrow()
+    })
+
+    it('延滞中の本を返却すれば再度借りられること', () => {
+      library.checkout(member.id, book.isbn, new Date('2026-02-01'))
+
+      // 延滞状態で返却
+      library.returnBook(member.id, book.isbn)
+
+      // 返却後は借りられる
+      const book2 = new Book(
+        '978-4-00-000002-0',
+        '文学',
+        '坊っちゃん',
+        '夏目漱石',
+      )
+      library.addBook(book2)
+
+      expect(() => {
+        library.checkout(member.id, book2.isbn, new Date('2026-02-20'))
+      }).not.toThrow()
+    })
+  })
 })

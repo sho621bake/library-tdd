@@ -1,10 +1,12 @@
 import { Book } from './Book'
+import { Loan } from './Loan'
 import { Member } from './Member'
 import { LibraryError } from './errors'
 
 export class Library {
   private books: Map<string, Book> = new Map()
   private members: Map<string, Member> = new Map()
+  private activeLoans: Loan[] = []
   private static readonly MAX_LOANS = 3
 
   /**
@@ -32,7 +34,11 @@ export class Library {
    * @throws {LibraryError}
    * @returns {void}
    */
-  checkout(memberId: string, isbn: string): void {
+  checkout(
+    memberId: string,
+    isbn: string,
+    currentDate: Date = new Date(),
+  ): void {
     const book = this.findBookOrThrow(isbn)
     const member = this.findMemberOrThrow(memberId)
 
@@ -42,7 +48,13 @@ export class Library {
     if (member.borrowedCount >= Library.MAX_LOANS) {
       throw new LibraryError('MAX_LOANS_REACHED', `貸出上限に達しています。`)
     }
+    if (this.hasOverdueLoans(memberId, currentDate)) {
+      throw new LibraryError('HAS_OVERDUE', '延滞中のため貸出できません。')
+    }
 
+    // 不変条件：book.checkout() と loan追加は必ずセット
+    const loan = new Loan(book, member, currentDate)
+    this.activeLoans.push(loan)
     book.checkout()
     member.borrow(book)
   }
@@ -61,8 +73,25 @@ export class Library {
     if (!member.hasBorrowed(book)) {
       throw new LibraryError('NOT_BORROWED', 'この本は借りていません。')
     }
+
+    // 不変条件：book.returnBook() と loan削除は必ずセット
+    this.activeLoans = this.activeLoans.filter(
+      (loan) => !(loan.book.isbn === isbn && loan.member.id === memberId),
+    )
     book.returnBook()
     member.returnBook(book)
+  }
+
+  /**
+   * 会員が期限切れの貸出を持っているかどうか
+   * @param {string} memberId
+   * @param {Date} currentDate
+   * @returns {boolean}
+   */
+  private hasOverdueLoans(memberId: string, currentDate: Date): boolean {
+    return this.activeLoans.some(
+      (loan) => loan.member.id === memberId && loan.isOverdue(currentDate),
+    )
   }
 
   /**
