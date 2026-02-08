@@ -50,7 +50,7 @@ describe('Library(図書館)', () => {
 
       expect(() => {
         library.checkout(member2.id, book.isbn)
-      }).toThrow('この本はすでに貸出中です。')
+      }).toThrow('この本は現在貸出中です')
     })
 
     it('貸出上限(3冊)を超えて借りようとするとエラーになること', () => {
@@ -80,7 +80,7 @@ describe('Library(図書館)', () => {
 
       expect(() => {
         library.checkout(member.id, book4.isbn)
-      }).toThrow('貸出上限に達しています。')
+      }).toThrow('貸出上限に達しています')
     })
 
     it('上限まで借りて1冊返却すると、再度借りられること', () => {
@@ -164,7 +164,7 @@ describe('Library(図書館)', () => {
 
       expect(() => {
         library.checkout(member.id, book2.isbn, today)
-      }).toThrow('延滞中のため貸出できません。')
+      }).toThrow('延滞中のため貸出できません')
     })
 
     it('返却期限内であれば追加で借りられること', () => {
