@@ -1,4 +1,11 @@
 import { Book } from './Book'
+import {
+  BookAvailableRule,
+  LendingContext,
+  LendingRule,
+  MaxLoansRule,
+  NoOverdueRule,
+} from './LendingRule'
 import { Loan } from './Loan'
 import { Member } from './Member'
 import { LibraryError } from './errors'
@@ -7,7 +14,17 @@ export class Library {
   private books: Map<string, Book> = new Map()
   private members: Map<string, Member> = new Map()
   private activeLoans: Loan[] = []
+  private lendingrules: LendingRule[] = []
   private static readonly MAX_LOANS = 3
+
+  constructor(rules?: LendingRule[]) {
+    // デフォルトルールを設定。外部からカスタムルールも注入可能
+    this.lendingrules = rules ?? [
+      new BookAvailableRule(),
+      new MaxLoansRule(Library.MAX_LOANS),
+      new NoOverdueRule(),
+    ]
+  }
 
   /**
    * 蔵書を追加する
@@ -42,14 +59,18 @@ export class Library {
     const book = this.findBookOrThrow(isbn)
     const member = this.findMemberOrThrow(memberId)
 
-    if (!book.isAvailable) {
-      throw new LibraryError('BOOK_NOT_AVAILABLE', 'この本はすでに貸出中です。')
+    const context: LendingContext = {
+      book,
+      member,
+      activeLoans: this.activeLoans,
+      currentDate,
     }
-    if (member.borrowedCount >= Library.MAX_LOANS) {
-      throw new LibraryError('MAX_LOANS_REACHED', `貸出上限に達しています。`)
-    }
-    if (this.hasOverdueLoans(memberId, currentDate)) {
-      throw new LibraryError('HAS_OVERDUE', '延滞中のため貸出できません。')
+
+    for (const rule of this.lendingrules) {
+      const result = rule.check(context)
+      if (!result.ok) {
+        throw new LibraryError('RULE_VIOLATION', result.reason)
+      }
     }
 
     // 不変条件：book.checkout() と loan追加は必ずセット
