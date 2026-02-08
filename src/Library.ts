@@ -5,6 +5,7 @@ import { LibraryError } from './errors'
 export class Library {
   private books: Map<string, Book> = new Map()
   private members: Map<string, Member> = new Map()
+  private static readonly MAX_LOANS = 3
 
   /**
    * 蔵書を追加する
@@ -37,6 +38,9 @@ export class Library {
 
     if (!book.isAvailable) {
       throw new LibraryError('BOOK_NOT_AVAILABLE', 'この本はすでに貸出中です。')
+    }
+    if (member.borrowedCount >= Library.MAX_LOANS) {
+      throw new LibraryError('MAX_LOANS_REACHED', `貸出上限に達しています。`)
     }
 
     book.checkout()

@@ -52,6 +52,60 @@ describe('Library(図書館)', () => {
         library.checkout(member2.id, book.isbn)
       }).toThrow('この本はすでに貸出中です。')
     })
+
+    it('貸出上限(3冊)を超えて借りようとするとエラーになること', () => {
+      // テストデータ準備用ヘルパー
+      const addBooks = (...isbns: string[]) => {
+        return isbns.map((isbns, i) => {
+          const b = new Book(
+            isbns,
+            `ジャンル${i + 1}`,
+            `タイトル${i + 1}`,
+            `著者${i + 1}`,
+          )
+          library.addBook(b)
+          return b
+        })
+      }
+
+      const [book2, book3, book4] = addBooks(
+        '978-4-00-000002-0',
+        '978-4-00-000003-0',
+        '978-4-00-000004-0',
+      )
+
+      library.checkout(member.id, book.isbn)
+      library.checkout(member.id, book2.isbn)
+      library.checkout(member.id, book3.isbn)
+
+      expect(() => {
+        library.checkout(member.id, book4.isbn)
+      }).toThrow('貸出上限に達しています。')
+    })
+
+    it('上限まで借りて1冊返却すると、再度借りられること', () => {
+      const book2 = new Book(
+        '978-4-00-000002-0',
+        '文学',
+        '坊っちゃん',
+        '夏目漱石',
+      )
+      const book3 = new Book('978-4-00-000003-0', '文学', 'こころ', '夏目漱石')
+      const book4 = new Book('978-4-00-000004-0', '文学', '三四郎', '夏目漱石')
+      library.addBook(book2)
+      library.addBook(book3)
+      library.addBook(book4)
+
+      library.checkout(member.id, book.isbn)
+      library.checkout(member.id, book2.isbn)
+      library.checkout(member.id, book3.isbn)
+      // 1冊返却
+      library.returnBook(member.id, book.isbn)
+
+      expect(() => {
+        library.checkout(member.id, book4.isbn)
+      }).not.toThrow()
+    })
   })
 
   describe('返却', () => {
