@@ -8,6 +8,7 @@ import {
 } from './LendingRule'
 import { Loan } from './Loan'
 import { Member } from './Member'
+import { Notifier } from './Notifier'
 import { LibraryError } from './errors'
 
 export class Library {
@@ -15,15 +16,17 @@ export class Library {
   private members: Map<string, Member> = new Map()
   private activeLoans: Loan[] = []
   private lendingrules: LendingRule[] = []
+  private notifier?: Notifier
   private static readonly MAX_LOANS = 3
 
-  constructor(rules?: LendingRule[]) {
+  constructor(rules?: LendingRule[], notifier?: Notifier) {
     // デフォルトルールを設定。外部からカスタムルールも注入可能
     this.lendingrules = rules ?? [
       new BookAvailableRule(),
       new MaxLoansRule(Library.MAX_LOANS),
       new NoOverdueRule(),
     ]
+    this.notifier = notifier
   }
 
   /**
@@ -78,6 +81,11 @@ export class Library {
     this.activeLoans.push(loan)
     book.checkout()
     member.borrow(book)
+
+    // 通知(失敗しても貸出を巻き戻さない)
+    try {
+      this.notifier?.send(member, `「${book.title}」を貸出ました。`)
+    } catch {}
   }
 
   /**

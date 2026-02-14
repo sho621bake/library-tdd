@@ -2,6 +2,7 @@ import { Library } from '../src/Library'
 import { Book } from '../src/Book'
 import { Member } from '../src/Member'
 import { LibraryError } from '../src/errors'
+import { Notifier } from '../src/Notifier'
 
 describe('Library(図書館)', () => {
   let library: Library
@@ -204,6 +205,58 @@ describe('Library(図書館)', () => {
       expect(() => {
         library.checkout(member.id, book2.isbn, new Date('2026-02-20'))
       }).not.toThrow()
+    })
+  })
+
+  describe('通知', () => {
+    it('貸出時にNotifierが呼ばれる', () => {
+      const notifier: Notifier = {
+        send: jest.fn(),
+      }
+      const libraryWithNotifier = new Library(undefined, notifier)
+      const b = new Book(
+        '978-4-00-000001-0',
+        '文学',
+        '吾輩は猫である',
+        '夏目漱石',
+      )
+      const m = new Member('M001', '田中太郎')
+      libraryWithNotifier.addBook(b)
+      libraryWithNotifier.addMember(m)
+
+      libraryWithNotifier.checkout(m.id, b.isbn)
+
+      expect(notifier.send).toHaveBeenCalledWith(
+        m,
+        '「吾輩は猫である」を貸出ました。',
+      )
+    })
+
+    it('Notifierが設定されていなくれも貸出は成功する', () => {
+      library.checkout(member.id, book.isbn)
+
+      expect(book.isAvailable).toBe(false)
+    })
+
+    it('Notifierが例外を投げても貸出は成功する', () => {
+      const failedNotifier: Notifier = {
+        send: jest.fn(() => {
+          throw new Error('通知サービスダウン中')
+        }),
+      }
+      const lib = new Library(undefined, failedNotifier)
+      const b = new Book(
+        '978-4-00-000001-0',
+        '文学',
+        '吾輩は猫である',
+        '夏目漱石',
+      )
+      const m = new Member('M001', '田中太郎')
+      lib.addBook(b)
+      lib.addMember(m)
+
+      expect(() => lib.checkout(m.id, b.isbn)).not.toThrow()
+      expect(b.isAvailable).toBe(false)
     })
   })
 })
