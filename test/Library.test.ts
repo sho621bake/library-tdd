@@ -145,6 +145,27 @@ describe('Library(図書館)', () => {
       }).not.toThrow()
       expect(member2.hasBorrowed(book)).toBe(true)
     })
+
+    it('期限内の返却では延滞料金が0円であること', () => {
+      const checkOutDate = new Date('2026-02-01')
+      library.checkout(member.id, book.isbn, checkOutDate)
+
+      const returnDate = new Date('2026-02-10')
+      const result = library.returnBook(member.id, book.isbn, returnDate)
+
+      expect(result.fine.amount).toBe(0)
+    })
+
+    it('延滞した返却では延滞料金が発生する', () => {
+      const checkoutDate = new Date('2026-02-01')
+      library.checkout(member.id, book.isbn, checkoutDate)
+
+      const returnDate = new Date('2026-02-20')
+      const result = library.returnBook(member.id, book.isbn, returnDate)
+
+      expect(result.fine.amount).toBe(250)
+      expect(result.returnDate).toEqual(returnDate)
+    })
   })
 
   describe('延滞チェック', () => {
