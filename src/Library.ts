@@ -1,4 +1,5 @@
 import { Book } from './Book'
+import { Fine } from './Fine'
 import {
   BookAvailableRule,
   LendingContext,
@@ -9,6 +10,7 @@ import {
 import { Loan } from './Loan'
 import { Member } from './Member'
 import { Notifier } from './Notifier'
+import { ReturnResult } from './ReturnResult'
 import { LibraryError } from './errors'
 
 export class Library {
@@ -95,7 +97,11 @@ export class Library {
    * @throws {LibraryError}
    * @returns {void}
    */
-  returnBook(memberId: string, isbn: string): void {
+  returnBook(
+    memberId: string,
+    isbn: string,
+    returnDate: Date = new Date(),
+  ): ReturnResult {
     const book = this.findBookOrThrow(isbn)
     const member = this.findMemberOrThrow(memberId)
 
@@ -103,12 +109,30 @@ export class Library {
       throw new LibraryError('NOT_BORROWED', 'この本は借りていません。')
     }
 
+    const loan = this.activeLoans.find(
+      (l) => l.book.isbn === isbn && l.member.id === memberId,
+    )
+    if (!loan) {
+      throw new LibraryError(
+        'INCONSISTENT_STATE',
+        '貸出記録が見つかりません(不正な状態)',
+      )
+    }
+    const fine = Fine.calcurate(loan, returnDate)
+
     // 不変条件：book.returnBook() と loan削除は必ずセット
     this.activeLoans = this.activeLoans.filter(
       (loan) => !(loan.book.isbn === isbn && loan.member.id === memberId),
     )
     book.returnBook()
     member.returnBook(book)
+
+    // 通知(失敗しても返却を巻き戻さない)
+    try {
+      this.notifier?.send(member, `「${book.title}」を返却しました`)
+    } catch {}
+
+    return { returnDate, fine }
   }
 
   /**
